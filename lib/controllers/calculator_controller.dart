@@ -1,5 +1,3 @@
-// lib/controllers/calculator_controller.dart
-
 import '../models/calculation.dart';
 
 class CalculatorController {
@@ -17,6 +15,24 @@ class CalculatorController {
       operatorSymbol: operatorSymbol,
     );
 
-    return calculation.compute();
+    return _compute(calculation);
+  }
+
+  double _compute(Calculation c) {
+    switch (c.operatorSymbol) {
+      case '+':
+        return c.firstOperand + c.secondOperand;
+      case '-':
+        return c.firstOperand - c.secondOperand;
+      case '*':
+        return c.firstOperand * c.secondOperand;
+      case '/':
+        if (c.secondOperand == 0) {
+          throw ArgumentError('Nulliga jagamine ei ole lubatud.');
+        }
+        return c.firstOperand / c.secondOperand;
+      default:
+        throw ArgumentError('Toetamata operaator: ${c.operatorSymbol}');
+    }
   }
 }
