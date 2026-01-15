@@ -1,38 +1,71 @@
+import '../services/expression_evaluator.dart';
 import '../models/calculation.dart';
 
 class CalculatorController {
+  String _expression = '';
+
+  String get expression => _expression;
+
+  void clear() {
+    _expression = '';
+  }
+
+
   double calculate({
     required String firstText,
     required String secondText,
     required String operatorSymbol,
   }) {
-    final double first = double.parse(firstText);
-    final double second = double.parse(secondText);
+    final first = double.parse(firstText);
+    final second = double.parse(secondText);
 
-    final calculation = Calculation(
-      firstOperand: first,
-      secondOperand: second,
-      operatorSymbol: operatorSymbol,
-    );
-
-    return _compute(calculation);
-  }
-
-  double _compute(Calculation c) {
-    switch (c.operatorSymbol) {
+    switch (operatorSymbol) {
       case '+':
-        return c.firstOperand + c.secondOperand;
+        return first + second;
       case '-':
-        return c.firstOperand - c.secondOperand;
+        return first - second;
       case '*':
-        return c.firstOperand * c.secondOperand;
+      case '×':
+        return first * second;
       case '/':
-        if (c.secondOperand == 0) {
+      case '÷':
+        if (second == 0) {
           throw ArgumentError('Nulliga jagamine ei ole lubatud.');
         }
-        return c.firstOperand / c.secondOperand;
+        return first / second;
       default:
-        throw ArgumentError('Toetamata operaator: ${c.operatorSymbol}');
+        throw ArgumentError('Toetamata operaator: $operatorSymbol');
     }
   }
+
+
+  void append(String value) {
+    if (_expression.isEmpty) {
+      if (_isOperator(value) && value != '-') return;
+      _expression = value;
+      return;
+    }
+
+    final last = _expression.substring(_expression.length - 1);
+
+    if (_isOperator(last) && _isOperator(value)) {
+      _expression = _expression.substring(0, _expression.length - 1) + value;
+      return;
+    }
+
+    _expression += value;
+  }
+
+
+  Calculation evaluate() {
+    final result = ExpressionEvaluator.evaluate(_expression);
+
+    return Calculation(
+      expression: _expression,
+      result: result,
+      timestamp: DateTime.now(),
+    );
+  }
+
+  bool _isOperator(String s) => s == '+' || s == '-' || s == '*' || s == '/' || s == '×' || s == '÷';
 }

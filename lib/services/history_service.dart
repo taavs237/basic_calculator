@@ -1,15 +1,19 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HistoryEntry {
   final String line;      // nt "4 * 5 = 20"
-  final String timestamp; // nt "2022-10-22 15:30"
+  final String timestamp; // ISO string
 
-  HistoryEntry({required this.line, required this.timestamp});
+  HistoryEntry({
+    required this.line,
+    required this.timestamp,
+  });
 
   Map<String, dynamic> toJson() => {
     'line': line,
     'timestamp': timestamp,
+    'createdAt': FieldValue.serverTimestamp(),
   };
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) => HistoryEntry(
@@ -19,29 +23,47 @@ class HistoryEntry {
 }
 
 class HistoryService {
-  static const _key = 'calc_history';
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Future<List<HistoryEntry>> getAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_key) ?? [];
-
-    final items = raw
-        .map((s) => HistoryEntry.fromJson(jsonDecode(s) as Map<String, dynamic>))
-        .toList();
-
-
-    return items.reversed.toList();
+  String get _uid {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('User not authenticated');
+    }
+    return user.uid;
   }
+
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _db.collection('users').doc(_uid).collection('history');
+
+
+  Stream<List<HistoryEntry>> watchAll() {
+    return _collection
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+        final data = doc.data();
+        return HistoryEntry.fromJson(data);
+      }).toList(),
+    );
+  }
+
 
   Future<void> add(HistoryEntry entry) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_key) ?? [];
-    raw.add(jsonEncode(entry.toJson()));
-    await prefs.setStringList(_key, raw);
+    await _collection.add(entry.toJson());
   }
 
+
   Future<void> clear() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_key);
+    final snapshot = await _collection.get();
+    final batch = _db.batch();
+
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+
+    await batch.commit();
   }
 }

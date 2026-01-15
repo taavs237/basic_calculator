@@ -11,8 +11,6 @@ class HistoryPage extends StatefulWidget {
 class _HistoryPageState extends State<HistoryPage> {
   final _historyService = HistoryService();
 
-  Future<List<HistoryEntry>> _load() => _historyService.getAll();
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -24,23 +22,23 @@ class _HistoryPageState extends State<HistoryPage> {
             icon: const Icon(Icons.delete_outline),
             onPressed: () async {
               await _historyService.clear();
-              if (!mounted) return;
-              setState(() {});
+              // ❗ setState EI OLE enam vaja (Stream uuendab ise)
             },
           ),
         ],
       ),
-      body: FutureBuilder<List<HistoryEntry>>(
-        future: _load(),
+      body: StreamBuilder<List<HistoryEntry>>(
+        stream: _historyService.watchAll(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final items = snapshot.data ?? [];
-          if (items.isEmpty) {
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('No history yet.'));
           }
+
+          final items = snapshot.data!;
 
           return ListView.separated(
             padding: const EdgeInsets.all(16),
